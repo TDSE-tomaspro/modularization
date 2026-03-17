@@ -28,6 +28,9 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -38,6 +41,9 @@ public class MicroSpringBoot {
 
     private final Map<String, RouteHandler> getRoutes = new LinkedHashMap<>();
     private final int port;
+    private final ExecutorService executorService = Executors.newFixedThreadPool(10);
+    private ServerSocket serverSocket;
+    private volatile boolean running = true;
 
     public MicroSpringBoot(int port) {
         this.port = port;
@@ -151,15 +157,58 @@ public class MicroSpringBoot {
     }
 
     void start() throws IOException {
-        try (ServerSocket serverSocket = new ServerSocket(port)) {
-            System.out.println("MicroSpringBoot listening on http://localhost:" + port);
-            while (true) {
-                try (Socket clientSocket = serverSocket.accept()) {
-                    handle(clientSocket);
-                } catch (RuntimeException ex) {
-                    System.err.println("Request handling error: " + ex.getMessage());
+        serverSocket = new ServerSocket(port);
+        System.out.println("MicroSpringBoot listening on http://localhost:" + port);
+        while (running) {
+            try {
+                Socket clientSocket = serverSocket.accept();
+                executorService.submit(() -> {
+                    try {
+                        handle(clientSocket);
+                    } catch (IOException e) {
+                        System.err.println("Error handling client request: " + e.getMessage());
+                    } finally {
+                        try {
+                            clientSocket.close();
+                        } catch (IOException e) {
+                            System.err.println("Error closing client socket: " + e.getMessage());
+                        }
+                    }
+                });
+            } catch (IOException e) {
+                if (!running) {
+                    System.out.println("Server stopped.");
+                    break;
+                }
+                System.err.println("Error accepting client connection: " + e.getMessage());
+            }
+        }
+    }
+
+    public void stop() {
+        running = false;
+        try {
+            if (serverSocket != null && !serverSocket.isClosed()) {
+                serverSocket.close();
+            }
+        } catch (IOException e) {
+            System.err.println("Error closing server socket: " + e.getMessage());
+        }
+        shutdownExecutor();
+    }
+
+    private void shutdownExecutor() {
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(60, TimeUnit.SECONDS)) {
+                executorService.shutdownNow();
+                if (!executorService.awaitTermination(60, TimeUnit.SECONDS)) {
+                    System.err.println("Executor service did not terminate");
                 }
             }
+        } catch (InterruptedException ie) {
+            executorService.shutdownNow();
+            Thread.currentThread().interrupt();
         }
     }
 
