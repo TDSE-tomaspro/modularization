@@ -282,6 +282,7 @@ Invoke-WebRequest -UseBasicParsing "http://localhost:35000/greeting?name=Tomas" 
 - AWS deployment with video
   - <video controls src="src/images/AWS-Video.mp4" title="Title"></video>
 
+
 ## 11. Conclusions
 
 1. It was possible to build a functional web server in Java using only sockets, without relying on external HTTP frameworks.
