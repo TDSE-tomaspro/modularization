@@ -73,6 +73,81 @@ The architecture relies on a few core entities:
 | `HelloController` | Example controller with basic endpoints and a simple HTML response. |
 | `GreetingController` | Controller that demonstrates the use of `@RequestParam` and state handling with `AtomicLong`. |
 
+#### Class Diagram
+
+```mermaid
+classDiagram
+    class MicroSpringBoot {
+        -Map~String,RouteHandler~ getRoutes
+        -int port
+        -ExecutorService executorService
+        -ServerSocket serverSocket
+        -boolean running
+        +main(String[] args)$
+        +start() void
+        +stop() void
+        +loadControllers(Set~Class~ classes) void
+        -handle(Socket clientSocket) void
+        -parseRequest(InputStream input) HttpRequest
+        -writeDynamicResponse(OutputStream, RouteHandler, Map) void
+        -findStaticResource(String path) StaticResource
+        -resolveArguments(Method, Map) Object[]
+    }
+
+    class RouteHandler {
+        +Object controller
+        +Method method
+    }
+
+    class HttpRequest {
+        +String method
+        +String path
+        +Map~String,String~ queryParameters
+    }
+
+    class StaticResource {
+        +String contentType
+        +byte[] body
+    }
+
+    class RestController {
+        <<annotation>>
+    }
+
+    class GetMapping {
+        <<annotation>>
+        +String value
+    }
+
+    class RequestParam {
+        <<annotation>>
+        +String value
+        +String defaultValue
+    }
+
+    class HelloController {
+        +index() String
+        +getPI() String
+        +helloWorld() String
+    }
+
+    class GreetingController {
+        -AtomicLong counter
+        +greeting(String name) String
+    }
+
+    MicroSpringBoot "1" --> "*" RouteHandler : registers
+    MicroSpringBoot ..> HttpRequest : creates
+    MicroSpringBoot ..> StaticResource : serves
+    RouteHandler --> HelloController : wraps
+    RouteHandler --> GreetingController : wraps
+    HelloController ..|> RestController : annotated with
+    GreetingController ..|> RestController : annotated with
+    HelloController ..> GetMapping : uses
+    GreetingController ..> GetMapping : uses
+    GreetingController ..> RequestParam : uses
+```
+
 ### Request Handling Flow
 
 1. The server opens a `ServerSocket` on the configured port.
