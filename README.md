@@ -56,6 +56,14 @@ The main framework class is `MicroSpringBoot`. It contains the core responsibili
 
 ### Main Components
 
+#### Class Design
+
+The architecture relies on a few core entities:
+- **`MicroSpringBoot`**: The core server engine managing the `ServerSocket` and thread pool (`ExecutorService`).
+- **`RouteHandler`**: Binds an instantiated controller to a mapped `Method`.
+- **`HttpRequest`**: Structure holding the parsed request path and query parameters.
+- **`StaticResource`**: Wrapper for static files (HTML/PNG) and their content types.
+
 | Component | Responsibility |
 | --- | --- |
 | `MicroSpringBoot` | Starts the server, discovers controllers, registers routes, processes HTTP requests, and serves static files. |
@@ -120,7 +128,28 @@ From the project root in PowerShell:
 .\mvnw.cmd package
 ```
 
-## 6. Running the Server
+## 6. Running and Deploying the Server
+
+### Generating and Deploying via Docker (AWS/EC2)
+
+To generate the Docker images and deploy the application (e.g., in an AWS EC2 instance), use the provided `Dockerfile` and `docker-compose.yml`.
+
+1. **Build the application:**
+   ```powershell
+   .\mvnw.cmd clean package
+   ```
+
+2. **Generate Image and Run with Docker Compose:**
+   ```bash
+   docker-compose up -d --build
+   ```
+   This command automatically builds the `web` container image using the project's `Dockerfile`, spins up a MongoDB container if needed, and binds the server to port `8087`.
+
+3. **Building and running manually with Docker:**
+   ```bash
+   docker build -t org.example/micro-spring-boot .
+   docker run -d -p 35000:35000 --name micro-web org.example/micro-spring-boot
+   ```
 
 ### Standard execution with automatic controller discovery
 
@@ -133,15 +162,6 @@ The server starts on port `35000` and makes the application available at:
 ```text
 http://localhost:35000/index.html
 ```
-
-### Execution with explicit controller loading
-
-This mode satisfies the suggested first version where POJOs are passed from the command line:
-
-```powershell
-java -cp target/classes org.example.demo.MicroSpringBoot org.example.demo.HelloController org.example.demo.GreetingController
-```
-
 ### Configurable port
 
 The default port is defined in `src/main/resources/application.properties`.
@@ -187,16 +207,6 @@ public String greeting(@RequestParam(value = "name", defaultValue = "World") Str
 	return "Hola " + name;
 }
 ```
-
-### What the framework does internally
-
-- Scans the compiled classes directory.
-- Identifies classes annotated with `@RestController`.
-- Instantiates each controller using its empty constructor.
-- Inspects methods annotated with `@GetMapping`.
-- Registers each route in an internal map.
-- When a request arrives, invokes the corresponding method through reflection.
-- If the method has parameters, resolves them from the query string using `@RequestParam`.
 
 ## 8. Example Application
 
@@ -264,6 +274,13 @@ Invoke-WebRequest -UseBasicParsing "http://localhost:35000/greeting?name=Tomas" 
   - ![AWS screenshot 2](src/images/8.jpg)
   - ![AWS screenshot 3](src/images/9.jpg)
   - ![AWS screenshot 4](src/images/10.jpg)
+- images to display it
+  - ![alt text](src/images/11.jpg) 
+  - ![alt text](src/images/12.jpg) 
+  - ![alt text](src/images/13.jpg) 
+  - ![alt text](src/images/15.jpg)
+- AWS deployment with video
+  - <video controls src="src/images/AWS-Video.mp4" title="Title"></video>
 
 ## 11. Conclusions
 
@@ -274,3 +291,6 @@ Invoke-WebRequest -UseBasicParsing "http://localhost:35000/greeting?name=Tomas" 
 3. The example application demonstrates that the server can deliver both dynamic content and static resources, meeting the HTML and PNG support requested in the workshop statement.
 
 4. The project confirms that with a simple architecture and Maven as the build foundation, it is possible to develop a clear, extensible prototype aligned with the academic objectives of the workshop.
+
+5. The successful containerization of the framework with Docker and its active deployment on an AWS EC2 instance proves that this custom-built Java web server can be seamlessly packaged and run in a modern, distributed cloud environment.
+

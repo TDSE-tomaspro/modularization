@@ -54,6 +54,12 @@ public class MicroSpringBoot {
         List<String> controllerNames = extractControllerNames(args);
         MicroSpringBoot app = new MicroSpringBoot(port);
         app.loadControllers(discoverControllerClasses(controllerNames));
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.println("Initiating graceful shutdown via Runtime Hook...");
+            app.stop();
+        }));
+
         app.start();
     }
 
@@ -113,7 +119,8 @@ public class MicroSpringBoot {
                     .map(MicroSpringBoot::loadClassQuietly)
                     .filter(Objects::nonNull)
                     .filter(candidate -> candidate.isAnnotationPresent(RestController.class))
-                    .collect(Collectors.toCollection(() -> new TreeSet<>((left, right) -> left.getName().compareTo(right.getName()))));
+                    .collect(Collectors.toCollection(
+                            () -> new TreeSet<>((left, right) -> left.getName().compareTo(right.getName()))));
         }
     }
 
@@ -151,7 +158,8 @@ public class MicroSpringBoot {
                 }
                 method.setAccessible(true);
                 getRoutes.put(path, new RouteHandler(controller, method));
-                System.out.println("Registered GET " + path + " -> " + controllerClass.getSimpleName() + "." + method.getName());
+                System.out.println(
+                        "Registered GET " + path + " -> " + controllerClass.getSimpleName() + "." + method.getName());
             }
         }
     }
@@ -221,7 +229,8 @@ public class MicroSpringBoot {
         }
 
         if (!"GET".equals(request.method())) {
-            writeResponse(output, 405, "text/plain; charset=UTF-8", "Method Not Allowed".getBytes(StandardCharsets.UTF_8));
+            writeResponse(output, 405, "text/plain; charset=UTF-8",
+                    "Method Not Allowed".getBytes(StandardCharsets.UTF_8));
             return;
         }
 
@@ -279,7 +288,8 @@ public class MicroSpringBoot {
         return queryParameters;
     }
 
-    private void writeDynamicResponse(OutputStream output, RouteHandler handler, Map<String, String> queryParameters) throws IOException {
+    private void writeDynamicResponse(OutputStream output, RouteHandler handler, Map<String, String> queryParameters)
+            throws IOException {
         try {
             Object[] arguments = resolveArguments(handler.method(), queryParameters);
             String body = (String) handler.method().invoke(handler.controller(), arguments);
@@ -299,7 +309,8 @@ public class MicroSpringBoot {
             Parameter parameter = parameters[index];
             RequestParam requestParam = parameter.getAnnotation(RequestParam.class);
             if (requestParam == null) {
-                throw new IllegalArgumentException("Missing @RequestParam annotation on parameter " + parameter.getName());
+                throw new IllegalArgumentException(
+                        "Missing @RequestParam annotation on parameter " + parameter.getName());
             }
 
             String value = queryParameters.get(requestParam.value());
@@ -373,8 +384,10 @@ public class MicroSpringBoot {
         return trimmed.startsWith("<!DOCTYPE html") || trimmed.startsWith("<html");
     }
 
-    private void writeResponse(OutputStream output, int statusCode, String contentType, byte[] body) throws IOException {
-        output.write(("HTTP/1.1 " + statusCode + " " + reasonPhrase(statusCode) + "\r\n").getBytes(StandardCharsets.UTF_8));
+    private void writeResponse(OutputStream output, int statusCode, String contentType, byte[] body)
+            throws IOException {
+        output.write(
+                ("HTTP/1.1 " + statusCode + " " + reasonPhrase(statusCode) + "\r\n").getBytes(StandardCharsets.UTF_8));
         output.write(("Content-Type: " + contentType + "\r\n").getBytes(StandardCharsets.UTF_8));
         output.write(("Content-Length: " + body.length + "\r\n").getBytes(StandardCharsets.UTF_8));
         output.write("Connection: close\r\n\r\n".getBytes(StandardCharsets.UTF_8));
