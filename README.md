@@ -280,7 +280,7 @@ Invoke-WebRequest -UseBasicParsing "http://localhost:35000/greeting?name=Tomas" 
   - ![alt text](src/images/13.jpg) 
   - ![alt text](src/images/15.jpg)
 - AWS deployment with video
-  - video controls src="src/images/AWS-Video.mp4" title="Title"></video>
+  - <video controls src="src/images/AWS-Video.mp4" title="Title"></video>
 
 ## 11. Conclusions
 
