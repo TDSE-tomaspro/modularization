@@ -47,7 +47,8 @@ This implementation covers the main technical requirements of the workshop:
 - Explicit bean loading from the command line.
 - Automatic component discovery by scanning the classpath.
 - Example web application deployed on top of the framework.
-- Sequential handling of multiple non-concurrent requests.
+- Concurrent handling of multiple requests using a fixed thread pool (`ExecutorService`).
+- Graceful shutdown using `Runtime.getRuntime().addShutdownHook(...)`.
 - Maven-based project structure and lifecycle.
 
 ## 3. Solution Architecture
@@ -76,12 +77,25 @@ The architecture relies on a few core entities:
 ### Request Handling Flow
 
 1. The server opens a `ServerSocket` on the configured port.
-2. An incoming connection is accepted.
-3. The first HTTP line is read and the method, path, and query string are extracted.
+2. Each incoming connection is accepted and delegated to a worker thread from a fixed `ExecutorService` pool.
+3. The worker reads the first HTTP line and extracts method, path, and query string.
 4. If the path matches a `@GetMapping`, the framework invokes the POJO method through reflection.
 5. If the path is not dynamic, a static resource is searched inside `src/main/resources/static`.
 6. The HTTP response is written with `Content-Type`, `Content-Length`, and the corresponding body.
-7. The connection is closed and the server waits for the next request.
+7. The worker closes the client connection; the main thread keeps accepting new requests concurrently.
+
+### Graceful Shutdown
+
+The framework registers a JVM shutdown hook in `MicroSpringBoot.main(...)` with `Runtime.getRuntime().addShutdownHook(...)`.
+When the process receives a termination signal, the shutdown sequence is:
+
+1. Set the running flag to `false`.
+2. Close the `ServerSocket` to stop accepting new connections.
+3. Call `executorService.shutdown()` to stop new tasks.
+4. Wait for active request handlers with `awaitTermination(...)`.
+5. Fallback to `shutdownNow()` only if workers do not finish in time.
+
+This approach prevents abrupt termination and gives active requests a chance to complete.
 
 ### Design Idea
 
@@ -294,4 +308,3 @@ Invoke-WebRequest -UseBasicParsing "http://localhost:35000/greeting?name=Tomas" 
 4. The project confirms that with a simple architecture and Maven as the build foundation, it is possible to develop a clear, extensible prototype aligned with the academic objectives of the workshop.
 
 5. The successful containerization of the framework with Docker and its active deployment on an AWS EC2 instance proves that this custom-built Java web server can be seamlessly packaged and run in a modern, distributed cloud environment.
-
